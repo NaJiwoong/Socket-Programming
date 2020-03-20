@@ -27,10 +27,14 @@ int main(int argc, char **argv){
 		switch(opt){
 			case 'h':
 				// Check validity of ip address
+				if (!is_ipaddr(optarg))
+					exit(-1);
 				strncpy(ip_addr, optarg, strlen(optarg)+1);
 				break;
 			case 'p':
-				// Check validity of port
+				// Check validity of porta
+				if (!is_valid_number(optarg, 5, 1))
+					exit(-1);
 				strncpy(port, optarg, strlen(optarg)+1);
 				break;
 			case 'o':
@@ -41,17 +45,15 @@ int main(int argc, char **argv){
 				break;
 			case 's':
 				// Check if s is valid number
+				if (!is_valid_number(optarg, 32, 2))
+					exit(-1);
 				strncpy(shift, optarg, strlen(optarg)+1);
 				break;
 			case '?':														// In unknown option, terminate the program
 				exit(-1);
 		}
 	}
-	
 	/* Get string from standard input until meet EOF */
-	char* test = "123";
-	if (is_valid_number(test))
-		printf("succeed";
 
 
 	return 0;
