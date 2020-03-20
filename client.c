@@ -20,7 +20,7 @@ int main(int argc, char **argv){
 
 	int param_valid;												// flag for check parameter validity
 	int opt;																// switch option for getopt()
-	char ip_addr[16], port[6], op, shift[32];			// char pointer for parameters
+	char ip_addr[16], port[6], op, shift[4];			// char pointer for parameters
 
 	/* Get parameters and store them for later use */
 	while((opt = getopt(argc, argv, "h:p:o:s:")) != -1){
@@ -45,7 +45,7 @@ int main(int argc, char **argv){
 				break;
 			case 's':
 				// Check if s is valid number
-				if (!is_valid_number(optarg, 32, 2))
+				if (!is_valid_number(optarg, 4, 2))
 					exit(-1);
 				strncpy(shift, optarg, strlen(optarg)+1);
 				break;
@@ -53,8 +53,19 @@ int main(int argc, char **argv){
 				exit(-1);
 		}
 	}
-	/* Get string from standard input until meet EOF */
 
+
+	/* Get string from standard input until meet EOF */
+	
+	
+	
+	
+
+	/* Build packet */
+	char *string = "groiswjngrisownjkmgrswinjogrwesoinjgerwniojegrnoijegwrnoijegrinjoegrwnjoigrswgrnwjoisgrwoinjgwrnjoigrswnojigrwsnjoivgrsnojigrvnoj";
+	char *packet = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string);
+	printf("<packet by bytes>\n");
+	print_byte(packet, strlen(string)+8);
 
 	return 0;
 }
