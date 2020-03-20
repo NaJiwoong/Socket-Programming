@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "valid.h"
 
 #define STRING_SIZE_LIMIT 9999992					// String bytes limit
 #define BUF_BLOCK_SIZE 65536							// String buffer block size
@@ -48,7 +49,9 @@ int main(int argc, char **argv){
 	}
 	
 	/* Get string from standard input until meet EOF */
-
+	char* test = "123";
+	if (is_valid_number(test))
+		printf("succeed";
 
 
 	return 0;
