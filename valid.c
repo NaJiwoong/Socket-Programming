@@ -5,10 +5,17 @@
 #include <ctype.h>
 
 #include <arpa/inet.h>
+#include <assert.h>
 
 typedef int bool;
 #define true 1
 #define false 0
+
+#define MAX_PACKET_SIZE 10u*1024u*1024u					// Max packet size
+#define STRING_SIZE_LIMIT MAX_PACKET_SIZE - 8u	// String bytes limit
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
 
 struct packet_header{
 	unsigned char opt;
@@ -93,7 +100,7 @@ get_checksum(struct packet_header* header, char* string){
 /* Build packet from op, shift , and given input string 
  	 This packet does not have checksum */
 char* build_packet(unsigned int op, unsigned int shift, char* string){
-	unsigned int length = strlen(string);
+	unsigned int length = MIN(strlen(string), STRING_SIZE_LIMIT);
 	char *packet = malloc(sizeof(char)*length+8);
 	
 	struct packet_header *header = malloc(sizeof(struct packet_header));
