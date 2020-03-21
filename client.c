@@ -12,8 +12,8 @@
 
 #include "valid.h"
 
-#define STRING_SIZE_LIMIT 9999992					// String bytes limit
-#define BUF_BLOCK_SIZE 65536							// String buffer block size
+#define STRING_SIZE_LIMIT 9999992u				// String bytes limit
+#define BUF_BLOCK_SIZE 65536u							// String buffer block size
 
 
 int main(int argc, char **argv){
@@ -56,16 +56,31 @@ int main(int argc, char **argv){
 
 
 	/* Get string from standard input until meet EOF */
+	char ch;
+	unsigned int idx=0, size=BUF_BLOCK_SIZE;
+	char *string = malloc(BUF_BLOCK_SIZE);
 	
-	
-	
-	
+	while((ch=getchar()) != EOF){
+		string[idx] = (char)ch;
+		idx++;
+		if (idx >= size){
+			string = realloc(string, size+BUF_BLOCK_SIZE);
+			size += BUF_BLOCK_SIZE;
+		}
+	}
 
 	/* Build packet */
-	char *string = "groiswjngrisownjkmgrswinjogrwesoinjgerwniojegrnoijegwrnoijegrinjoegrwnjoigrswgrnwjoisgrwoinjgwrnjoigrswnojigrwsnjoivgrsnojigrvnoj";
 	char *packet = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string);
 	printf("<packet by bytes>\n");
 	print_byte(packet, strlen(string)+8);
 
+
+
+
+	/* Termination */
+	free(string);
+	free(packet);
+	
+	
 	return 0;
 }

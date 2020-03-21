@@ -94,7 +94,7 @@ get_checksum(struct packet_header* header, char* string){
  	 This packet does not have checksum */
 char* build_packet(unsigned int op, unsigned int shift, char* string){
 	unsigned int length = strlen(string);
-	char *packet = malloc(sizeof(char)*length);
+	char *packet = malloc(sizeof(char)*length+8);
 	
 	struct packet_header *header = malloc(sizeof(struct packet_header));
 	header->opt = op;
@@ -108,6 +108,8 @@ char* build_packet(unsigned int op, unsigned int shift, char* string){
 
 	memcpy(packet, header, sizeof(header));
 	memcpy((packet+8), string, length);
+
+	free(header);
 
 	return packet;
 
