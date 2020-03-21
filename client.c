@@ -11,11 +11,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 #include "valid.h"
 
-#define STRING_SIZE_LIMIT 9999992u				// String bytes limit
-#define BUF_BLOCK_SIZE 65536u							// String buffer block size
+#define MAX_PACKET_SIZE 10u*1024u*1024u					// Max packet size
+#define STRING_SIZE_LIMIT MAX_PACKET_SIZE - 8u	// String bytes limit
+#define BUF_BLOCK_SIZE 65536u										// String buffer block size
 
 struct packet_header{
 	unsigned char opt;
@@ -94,42 +96,94 @@ int main(int argc, char **argv){
 	}
 
 	/* Build packet */
+	//char **packets = malloc(sizeof(char *)*20);					// List for pointers of packets
 	if (strlen(string) <= 0)
 		goto terminate; 
 	char *packet = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string);
 
 	/* Send packet */
 	int send_size;
+	unsigned int total_packet_size = strlen(string)+8;
 	send_size = send(socketfd, packet, strlen(string)+8, 0);
 
 	/* Receive packet */
-	int recv_size;
-	char* reply = malloc(strlen(string)+8);
-	recv_size = recv(socketfd, reply, strlen(string)+8, 0);
+	unsigned int to_recv = total_packet_size > MAX_PACKET_SIZE ?
+																						MAX_PACKET_SIZE : total_packet_size;
+	unsigned int to_recv_string;
+	char **replies = malloc(sizeof(char *)*1024);					// List for pointers of replies
+	memset(replies, 0, sizeof(char *)*1024);
+	replies[0] = malloc(to_recv);
+	unsigned int len_req = strlen(string), len_rec = 0;	// Required length, and received length
 
-	/* Checksum validity */
-	struct packet_header *recv_header = malloc(sizeof(struct packet_header));
-	memcpy(recv_header, reply, 8);
-	memset(reply+2, 0, 2);
-	unsigned short server_checksum = get_checksum((struct packet_header *)reply, 
-																															(char *)(reply+8));
-	if (!(server_checksum == recv_header->checksum)){
-		close(socketfd);
-		printf("wrong checksum!\n");
+	// Do until get whole string to get (until received length exeeds required length)
+	int packet_number = 0;
+	while ((to_recv_string=(len_req-len_rec)) > 0){
+		packet_number++;
+		int iter=0;
+		unsigned int recv_size, string_length;
+		unsigned int total_recv = strlen(replies[iter]);
+
+		// Get the header at least (8B)
+		while (total_recv < 8){
+			recv_size = recv(socketfd, replies[iter]+total_recv, to_recv, 0);
+			total_recv += recv_size;
+		}
+		
+		// Get string length keep receiving until string length
+		string_length = ntohl(*(unsigned int *)(replies[iter]+4))-8;
+		while (string_length+8 > total_recv){
+			recv_size = recv(socketfd, replies[iter]+total_recv, 
+																string_length+8-total_recv, 0);
+			total_recv += recv_size;
+		}
+		len_rec += string_length;
+
+		iter++;
+		replies[iter] = malloc(to_recv);
+		if (total_recv > string_length+8){			// If over received, pass it to next elem
+			memcpy(replies[iter], replies[iter-1]+string_length+8,
+																				total_recv-string_length-8);
+		}
+		
+
+		// Checksum validity
+		struct packet_header *recv_header = malloc(sizeof(struct packet_header ));
+		memcpy(recv_header, replies[iter-1], 8);
+		memset(replies[iter-1]+2, 0, 2);
+		unsigned short server_checksum = get_checksum((struct packet_header *)replies[iter-1],
+																														(char *)(replies[iter-1]+8));
+		if (!(server_checksum == recv_header->checksum)){
+			close(socketfd);
+			break;
+		}
+		free(recv_header);
 	}
+	close(socketfd);
 
+	/* Concatenate string from packets */
+	char *result = malloc(strlen(string)+1);
+	int i=0;
+	char *reply;
+	unsigned int add_string=0;
+	for(reply = replies[i]; i < packet_number ; i++){
+		if (reply == 0 || reply == NULL)
+			break;
+		memcpy(result+(int)add_string, reply+8, ntohl(*(unsigned int *)(reply+4))-8u);
+		add_string += ntohl(*(unsigned int*)(reply+4)-8u);
+	}
+	result[strlen(string)] = '\0';
 
 	/* Print the result */
-	char* result = malloc(strlen(string));
-	memcpy(result, reply+8, strlen(string));
-	printf("<Received string>\n%s\n", result);
+	printf("\n%s\n", result);
 
 
 	/* Termination */
+	free(replies);
 	free(reply);
 	free(result);
 	free(string);
 	free(packet);
+	free(addr);
 	
 	terminate:
 	
