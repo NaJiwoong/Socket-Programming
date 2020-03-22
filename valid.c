@@ -11,7 +11,7 @@ typedef int bool;
 #define true 1
 #define false 0
 
-#define MAX_PACKET_SIZE 10u*1024u*1024u					// Max packet size
+#define MAX_PACKET_SIZE 10u*1000u*1000u					// Max packet size
 #define STRING_SIZE_LIMIT MAX_PACKET_SIZE - 8u	// String bytes limit
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -31,11 +31,11 @@ bool is_valid_number(char* number, int maxlen, int opt){
 	if (strlen(number) > maxlen)
 		return false;
 	
-	int idx;
-	for (idx=0; idx < strlen(number); idx++){ // Check if every char is digit, otherwise, false
-		if (!isdigit(number[idx]))
-			return false;
-	}
+//	int idx;
+//	for (idx=0; idx < strlen(number); idx++){ // Check if every char is digit, otherwise, false
+//		if (!isdigit(number[idx]))
+//			return false;
+//	}
 	int num = atoi(number);
 	if (opt == 2)															// For checking validity of shift number
 		return true;
@@ -73,7 +73,7 @@ unsigned short
 get_checksum(struct packet_header* header, char* string, unsigned int length){
 	unsigned long long sum = 0, result = 0;
 	int i;
-	printf("length: %u\n", length);
+	printf("checksum: length: %u\n", length);
 
 	/* Accumulate checksum */
 	for (i=0; i<4; i++){
@@ -91,14 +91,19 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
 		sum += word16;
 	}
 
+	printf("checksum: sum finish\n");
 	/* Fold to get the ones-complement result */
 	result += (sum >> 48) & 0xFFFF;
 	result += (sum >> 32) & 0xFFFF;
 	result += (sum >> 16) & 0xFFFF;
 	result += sum & 0xFFFF;
 	
-	while (result >> 16)
+	while (result >> 16){
+		printf("really..?");
 		result = (result & 0xFFFF) + (result >> 16);
+	}
+
+	printf("return;");
 
 	return ~result;
 }
