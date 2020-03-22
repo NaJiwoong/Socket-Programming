@@ -15,6 +15,8 @@
 
 #include "valid.h"
 
+#include <errno.h>
+
 #define MAX_PACKET_SIZE (unsigned int)10u*1024u*1024u					// Max packet size
 #define STRING_SIZE_LIMIT MAX_PACKET_SIZE - 8u	// String bytes limit
 #define BUF_BLOCK_SIZE 65536u										// String buffer block size
@@ -103,19 +105,24 @@ int main(int argc, char **argv){
 	if (strlen(string) <= 0)
 		goto terminate;
 
-	unsigned int length = strlen(string);
+	unsigned int length = strlen(string), used = 0u;
 	int required_packet = length/(10u*1024u*1024u - 8u) + 1;
 	char **packets = malloc(sizeof(char *)*required_packet);
 
+	printf("required_packet: %d\n", required_packet);
 	for (i = 0; i < required_packet; i++){
-		packets[i] = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string);
+		printf("start build packet\n");
+		packets[i] = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string+used);
+		used = ntohl(*(unsigned int *)(packets[i]+4)) - 8;
 	}
 
 	/* Send packet */
 	int send_size;
 	unsigned int total_packet_size = strlen(string) + 8;
 	for (i = 0; i < required_packet; i++){
+		printf("send length: %u\n", ntohl(*(unsigned int *)(packets[i]+4)));
 		send_size = send(socketfd, packets[i], ntohl(*(unsigned int *)(packets[i]+4)), 0);
+		printf("send: %d\n", send_size);
 	}
 
 	/* Receive packet */
@@ -140,11 +147,15 @@ int main(int argc, char **argv){
 		unsigned int recv_size, string_length;
 		unsigned int total_recv = strlen(replies[iter]);
 
+		printf("error: %d\n", errno);
 		// Get the header at least (8B)
 		while (total_recv < 8){
 			recv_size = recv(socketfd, replies[iter]+total_recv, to_recv, 0);
+			if (recv_size == 0)
+				exit(-1);
 			total_recv += recv_size;
 		}
+		
 
 		// Get string length keep receiving until string length
 		string_length = ntohl(*(unsigned int *)(replies[iter]+4))-8;
@@ -167,7 +178,7 @@ int main(int argc, char **argv){
 		memcpy(recv_header, replies[iter-1], 8);
 		memset(replies[iter-1]+2, 0, 2);
 		unsigned short server_checksum = get_checksum((struct packet_header *)replies[iter-1],
-				(char *)(replies[iter-1]+8));
+				(char *)(replies[iter-1]+8), ntohl((recv_header->length)));
 		if (!(server_checksum == recv_header->checksum)){
 			close(socketfd);
 			socket_connection = 0;

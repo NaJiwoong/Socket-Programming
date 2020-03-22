@@ -70,30 +70,37 @@ bool is_ipaddr(char* addr){
 }
 
 unsigned short
-get_checksum(struct packet_header* header, char* string){
-	unsigned int sum = 0;
+get_checksum(struct packet_header* header, char* string, unsigned int length){
+	unsigned long long sum = 0, result = 0;
 	int i;
+	printf("length: %u\n", length);
 
 	/* Accumulate checksum */
 	for (i=0; i<4; i++){
 		sum += ((unsigned short *)header)[i];
 	}
-	for (i=0; i < strlen(string)-1; i += 2){
+	for (i=0; i < length-1; i += 2){
+		//printf("il?");
 		unsigned short word16 = *(unsigned short *) &string[i];
 		sum += word16;
 	}
 	
 	/* Handle odd-sized case */
-	if (strlen(string) & 1){
+	if (length & 1){
 		unsigned short word16 = (unsigned char) string[i];
 		sum += word16;
 	}
 
 	/* Fold to get the ones-complement result */
-	while (sum >> 16)
-		sum = (sum & 0xFFFF) + (sum >> 16);
+	result += (sum >> 48) & 0xFFFF;
+	result += (sum >> 32) & 0xFFFF;
+	result += (sum >> 16) & 0xFFFF;
+	result += sum & 0xFFFF;
+	
+	while (result >> 16)
+		result = (result & 0xFFFF) + (result >> 16);
 
-	return ~sum;
+	return ~result;
 }
 
 
@@ -103,13 +110,14 @@ char* build_packet(unsigned int op, unsigned int shift, char* string){
 	unsigned int length = MIN(strlen(string), STRING_SIZE_LIMIT);
 	char *packet = malloc(sizeof(char)*length+8);
 	
+	printf("lenlen: %u\n", length);
 	struct packet_header *header = malloc(sizeof(struct packet_header));
 	header->opt = op;
 	header->shift = shift;
 	header->checksum = (unsigned short) 0;
 	header->length = htonl(length+8);
 
-	header->checksum = get_checksum(header, string);
+	header->checksum = get_checksum(header, string, length+8);
 	
 	/* Make entire packet in char ptr type */
 
