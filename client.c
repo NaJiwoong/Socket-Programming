@@ -84,7 +84,6 @@ int main(int argc, char **argv){
 			size += BUF_BLOCK_SIZE;
 		}
 	}
-	printf("string length: %lu\n", strlen(string));
 
 	/* Create socket and connect to server */
 	int socketfd, i;
@@ -97,7 +96,6 @@ int main(int argc, char **argv){
 	addr->sin_addr.s_addr = inet_addr(ip_addr);
 
 	if (connect(socketfd, (struct sockaddr *)addr, sizeof(struct sockaddr_in)) == -1){
-		printf("failed to connect\n");
 		exit(-1);
 	}
 	int socket_connection = 1;
@@ -110,13 +108,9 @@ int main(int argc, char **argv){
 	int required_packet = length/(10u*1000u*1000u - 8u) + 1;
 	char **packets = malloc(sizeof(char *)*required_packet);
 
-	printf("required_packet: %d\n", required_packet);
-	packets[0] = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string+used);
-	used += ntohl(*(unsigned int *)(packets[0]+4)) - 8;
-	for (i = 1; i < required_packet; i++){
-		packets[i] = malloc(sizeof(char *)*MIN(strlen(string+used), MAX_PACKET_SIZE));
-		memcpy(packets[i], string+used, MIN(strlen(string+used), MAX_PACKET_SIZE));
-		used += MIN(strlen(string+used), MAX_PACKET_SIZE);
+	for (i = 0; i < required_packet; i++){
+		packets[i] = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string+used);
+		used = ntohl(*(unsigned int *)(packets[i]+4)) - 8;
 	}
 
 	/* Send packet */
@@ -138,8 +132,7 @@ int main(int argc, char **argv){
 	// Do until get whole string to get (until received length exeeds required length)
 	int packet_number = 0;
 	int slot_number = 1024;
-	while ((to_recv_string=(len_req-len_rec)) > 0){		
-		printf("while...");
+	while ((to_recv_string=(len_req-len_rec)) > 0){
 		packet_number++;
 		if (packet_number > slot_number){
 			replies = realloc(replies, sizeof(char *)*(1024 + slot_number));
@@ -149,12 +142,9 @@ int main(int argc, char **argv){
 		unsigned int recv_size, string_length;
 		unsigned int total_recv = strlen(replies[iter]);
 
-		//printf("error----: %d\n", errno);
 		// Get the header at least (8B)
-		printf("why?");
 		while (total_recv < 8){
 			recv_size = recv(socketfd, replies[iter]+total_recv, to_recv, 0);
-			printf("first recv: %d\n", recv_size);
 			if (recv_size == 0)
 				exit(-1);
 			total_recv += recv_size;
@@ -166,7 +156,6 @@ int main(int argc, char **argv){
 		while (string_length+8 > total_recv){
 			recv_size = recv(socketfd, replies[iter]+total_recv, 
 					string_length+8-total_recv, 0);
-			printf("second recv: %d\n", recv_size);
 			total_recv += recv_size;
 		}
 		len_rec += string_length;
@@ -177,7 +166,6 @@ int main(int argc, char **argv){
 			memcpy(replies[iter], replies[iter-1]+string_length+8,
 					total_recv-string_length-8);
 		}
-		printf("why?");
 
 		// Checksum validity
 		struct packet_header *recv_header = malloc(sizeof(struct packet_header ));
@@ -194,25 +182,17 @@ int main(int argc, char **argv){
 	}
 	if (socket_connection == 1)
 		close(socketfd);
-	
-	
-	printf("lets merge\n");
+
 	/* Concatenate string from packets */
 	char *result = malloc(strlen(string)+1);
 	i=0;
 	char *reply;
 	unsigned int add_string=0;
-	reply = replies[0];
-	unsigned int total_len = ntohl(*(unsigned int *)(reply+4))-8u;
-	memcpy(result, reply+8, total_len);
-	i= 1;
-	printf("pass\n");
 	for(reply = replies[i]; i < packet_number ; i++){
-		printf("pass\n");
 		if (reply == 0 || reply == NULL)
 			break;
-		memcpy(result+(int)add_string, reply, strlen(reply));
-		add_string += strlen(reply);
+		memcpy(result+(int)add_string, reply+8, ntohl(*(unsigned int *)(reply+4))-8u);
+		add_string += ntohl(*(unsigned int*)(reply+4)-8u);
 	}
 	result[strlen(string)] = '\0';
 
@@ -231,3 +211,7 @@ terminate:
 
 	return 0;
 }
+
+
+
+

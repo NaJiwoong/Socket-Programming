@@ -73,7 +73,6 @@ unsigned short
 get_checksum(struct packet_header* header, char* string, unsigned int length){
 	unsigned long long sum = 0, result = 0;
 	int i;
-	printf("checksum: length: %u\n", length);
 
 	/* Accumulate checksum */
 	for (i=0; i<4; i++){
@@ -91,7 +90,6 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
 		sum += word16;
 	}
 
-	printf("checksum: sum finish\n");
 	/* Fold to get the ones-complement result */
 	result += (sum >> 48) & 0xFFFF;
 	result += (sum >> 32) & 0xFFFF;
@@ -99,11 +97,9 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
 	result += sum & 0xFFFF;
 	
 	while (result >> 16){
-		printf("really..?");
 		result = (result & 0xFFFF) + (result >> 16);
 	}
 
-	printf("return;");
 
 	return ~result;
 }
@@ -115,7 +111,6 @@ char* build_packet(unsigned int op, unsigned int shift, char* string){
 	unsigned int length = MIN(strlen(string), STRING_SIZE_LIMIT);
 	char *packet = malloc(sizeof(char)*length+8);
 	
-	printf("lenlen: %u\n", length);
 	struct packet_header *header = malloc(sizeof(struct packet_header));
 	header->opt = op;
 	header->shift = shift;
