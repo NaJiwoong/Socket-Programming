@@ -87,8 +87,9 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
 	/* Handle odd-sized case */
 	if (length & 1){
 		unsigned short word16 = (unsigned char) string[i];
-		sum += word16;
-	}
+		sum += (((unsigned short)word16) << 8) & 0XFF00 ;
+		//sum += (word16);
+	}	
 
 	/* Fold to get the ones-complement result */
 	result += (sum >> 48) & 0xFFFF;
@@ -117,7 +118,7 @@ char* build_packet(unsigned int op, unsigned int shift, char* string){
 	header->checksum = (unsigned short) 0;
 	header->length = htonl(length+8);
 
-	header->checksum = get_checksum(header, string, length+8);
+	header->checksum = (get_checksum(header, string, length+8));
 	
 	/* Make entire packet in char ptr type */
 

@@ -36,7 +36,7 @@ int main(int argc, char **argv){
 	int param_valid;												// flag for check parameter validity
 	int opt;																// switch option for getopt()
 	char ip_addr[16], op, shift[4];			// char pointer for parameters
-	unsigned short port;
+	unsigned short port, shift_r;
 
 	/* Get parameters and store them for later use */
 	while((opt = getopt(argc, argv, "h:p:o:s:")) != -1){
@@ -70,21 +70,6 @@ int main(int argc, char **argv){
 		}
 	}
 
-
-	/* Get string from standard input until meet EOF */
-	char ch;
-	unsigned int idx=0, size=BUF_BLOCK_SIZE;
-	char *string = malloc(BUF_BLOCK_SIZE);
-
-	while((ch=getchar()) != EOF){
-		string[idx] = (char)ch;
-		idx++;
-		if (idx >= size){
-			string = realloc(string, size+BUF_BLOCK_SIZE);
-			size += BUF_BLOCK_SIZE;
-		}
-	}
-
 	/* Create socket and connect to server */
 	int socketfd, i;
 	socketfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -100,6 +85,28 @@ int main(int argc, char **argv){
 	}
 	int socket_connection = 1;
 
+
+	if (((int)(atoi(shift))<0)){
+		shift_r = (unsigned int)(- (int)(atoi(shift)));
+		op = (op == '0') ? '1' : '0';
+	}else{
+		shift_r = (unsigned int)atoi(shift);
+	}
+	
+	/* Get string from standard input until meet EOF */
+	char ch;
+	unsigned int idx=0, size=BUF_BLOCK_SIZE;
+	char *string = malloc(BUF_BLOCK_SIZE);
+
+	while((ch=getchar()) != EOF){
+		string[idx] = (char)ch;
+		idx++;
+		if (idx >= size){
+			string = realloc(string, size+BUF_BLOCK_SIZE);
+			size += BUF_BLOCK_SIZE;
+		}
+	}
+
 	/* Build packet */
 	if (strlen(string) <= 0)
 		goto terminate;
@@ -109,8 +116,8 @@ int main(int argc, char **argv){
 	char **packets = malloc(sizeof(char *)*required_packet);
 
 	for (i = 0; i < required_packet; i++){
-		packets[i] = build_packet((unsigned int)(op-'0'), (unsigned int) atoi(shift), string+used);
-		used = ntohl(*(unsigned int *)(packets[i]+4)) - 8;
+		packets[i] = build_packet((unsigned int)(op-'0'), (unsigned int) shift_r, string+used);
+		used += ntohl(*(unsigned int *)(packets[i]+4)) - 8;
 	}
 
 	/* Send packet */
@@ -145,8 +152,9 @@ int main(int argc, char **argv){
 		// Get the header at least (8B)
 		while (total_recv < 8){
 			recv_size = recv(socketfd, replies[iter]+total_recv, to_recv, 0);
-			if (recv_size == 0)
+			if (recv_size == 0){
 				exit(-1);
+			}
 			total_recv += recv_size;
 		}
 		

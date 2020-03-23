@@ -26,17 +26,19 @@ char decrypt(char ch, int shift){
 
 char *
 caesar_cipher_e(char* string, int shift){
-	char *cipher = malloc(strlen(string)*sizeof(char));
-	strncpy(cipher, string, strlen(string));
-
 	int i;
-	for (i=0; i < strlen(cipher); i++){
-		cipher[i] = encrypt(cipher[i], shift);
+	for (i=0; i < strlen(string); i++){
+		string[i] = encrypt(string[i], shift);
 	}
-	return cipher;
+	return string;
 }
 
 char *
 caesar_cipher_d(char* string, int shift){
 	return caesar_cipher_d(string, -shift);
+}
+
+char *
+caesar_cipher(char *string,unsigned int op, unsigned int shift){
+	return (op == 0) ? caesar_cipher_e(string, shift) : caesar_cipher_d(string, shift);
 }
