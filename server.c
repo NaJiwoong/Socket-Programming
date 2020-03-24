@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <poll.h>
+#include <sys/ioctl.h>
 
 #include "valid.h"
 #include "caesar.h"
@@ -53,7 +54,7 @@ int main(int argc, char **argv){
 	}
 
 	/* Create socket */
-	int listen_socket, connect_socket;
+	int listen_socket, connect_socket, nonblock = 1;
 	struct sockaddr_in listen_addr, connect_addr;
 	memset(&listen_addr, 0, sizeof(listen_addr));
 	memset(&connect_addr, 0, sizeof(connect_addr));
@@ -84,8 +85,11 @@ int main(int argc, char **argv){
 	pollings[0].revents = 0;
 	
 	int k;
-	for (k = 1; k < 100; k++)
+	for (k = 1; k < 100; k++){
 		pollings[k].fd = -1;
+		pollings[k].events = POLLIN;
+		pollings[k].revents = 0;
+	}
 
 	while (1){
 		int i, wait = poll(pollings, 100, -1);						// Wait until the events occur
@@ -96,6 +100,7 @@ int main(int argc, char **argv){
 				for (i = 1; i < 100; i++){
 					if (pollings[i].fd == -1){
 						pollings[i].fd = accept(listen_socket, (struct sockaddr *)&connect_addr, &addrlen);
+						//ioctl(pollings[i].fd, FIONBIO, &nonblock);
 						pollings[i].events = POLLIN;
 						pollings[i].revents = 0;
 						break;
@@ -107,8 +112,8 @@ int main(int argc, char **argv){
 			for (i = 1; i < 100; i++){
 				if (pollings[i].revents == POLLIN){
 					// Get packets as client code, and handle it
-					char **requests = malloc(sizeof(char *)*16);
-					memset(requests, 0, sizeof(char *)*16);
+					char **requests = malloc(sizeof(char *)*100);
+					memset(requests, 0, sizeof(char *)*100);
 					requests[i] = malloc(MAX_PACKET_SIZE);
 					
 					
@@ -119,7 +124,7 @@ int main(int argc, char **argv){
 						recv_size = recv(pollings[i].fd, requests[i]+total_recv, MAX_PACKET_SIZE, 0);
 						packet_number++;
 						if (recv_size == 0){
-							break;
+							goto terminate;
 						}
 						total_recv += recv_size;
 					}
@@ -142,13 +147,14 @@ int main(int argc, char **argv){
 						close(pollings[i].fd);
 					}
 					unsigned int op = recv_header->opt, shift = recv_header->shift;
-					free(recv_header);
+					//free(recv_header);
 
 					// Caesar cipher
-					char *result = malloc(ntohl(*(unsigned int *)(requests[i]+4))-8);
+					char *result = malloc(ntohl(*(unsigned int *)(requests[i]+4))-7);
 					int j = 0;
 					unsigned int add_string = 0;
-					memcpy(result+(int)add_string, requests[i]+8, ntohl(*(unsigned int *)(requests[i]+4))-8u);
+					strncpy(result+(int)add_string, requests[i]+8, ntohl(*(unsigned int *)(requests[i]+4))-8u);
+					result[ntohl(*(unsigned int *)(requests[i]+4))-8u]='\0';
 					add_string += ntohl(*(unsigned int*)(requests[i]+4)-8u);
 					caesar_cipher(result, op, shift);
 					// Build packets and send all of them.
@@ -157,19 +163,29 @@ int main(int argc, char **argv){
 					char **packets = malloc(sizeof(char *)*required_packet);
 				
 					for (j = 0; j < required_packet; j++){
-						packets[j] = build_packet((unsigned int)(op-'0'), (unsigned int)shift, result+used);
+						packets[j] = build_packet(op, (unsigned int)shift, result+used);
 						used += ntohl(*(unsigned int *)(packets[j]+4)) - 8;
 					}
 					
 					int send_size;
 					for (j = 0; j < required_packet; j++){
+
 						send_size = send(pollings[i].fd, packets[j], ntohl(*(unsigned int *)(packets[j]+4)), 0);
 						free(packets[j]);
 					}
+					
+					free(result);
+					free(packets);
 
-					pollings[i].revents = 0;
+terminate:
+					
+					free(requests[i]);
+					free(requests);
+					
 					close(pollings[i].fd);
+					pollings[i].revents = 0;
 					pollings[i].fd = -1;
+					break;
 				}
 				else{
 				}

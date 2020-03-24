@@ -17,6 +17,8 @@ typedef int bool;
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
+void print_byte(void *ptr, int size);
+
 struct packet_header{
 	unsigned char opt;
 	unsigned char shift;
@@ -78,15 +80,14 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
 	for (i=0; i<4; i++){
 		sum += ((unsigned short *)header)[i];
 	}
-	for (i=0; i < length-1; i += 2){
-		//printf("il?");
-		unsigned short word16 = *(unsigned short *) &string[i];
+	for (i=0; i < length-9; i += 2){
+		unsigned short word16 = *(unsigned short *) (string+i);
 		sum += word16;
 	}
 	
 	/* Handle odd-sized case */
 	if (length & 1){
-		unsigned short word16 = (unsigned char) string[i];
+		unsigned short word16 = (unsigned char) string[length-1];
 		sum += (((unsigned short)word16) << 8) & 0XFF00 ;
 		//sum += (word16);
 	}	
@@ -110,7 +111,8 @@ get_checksum(struct packet_header* header, char* string, unsigned int length){
  	 This packet does not have checksum */
 char* build_packet(unsigned int op, unsigned int shift, char* string){
 	unsigned int length = MIN(strlen(string), STRING_SIZE_LIMIT);
-	char *packet = malloc(sizeof(char)*length+8);
+	char *packet = malloc(sizeof(char)*length+8+1);
+	memset(packet, 0, sizeof(char)*length+9);
 	
 	struct packet_header *header = malloc(sizeof(struct packet_header));
 	header->opt = op;
@@ -124,6 +126,7 @@ char* build_packet(unsigned int op, unsigned int shift, char* string){
 
 	memcpy(packet, header, sizeof(header));
 	memcpy((packet+8), string, length);
+	packet[length+8]='\0';
 
 	free(header);
 

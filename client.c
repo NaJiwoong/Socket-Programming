@@ -81,6 +81,7 @@ int main(int argc, char **argv){
 	addr->sin_addr.s_addr = inet_addr(ip_addr);
 
 	if (connect(socketfd, (struct sockaddr *)addr, sizeof(struct sockaddr_in)) == -1){
+		printf("error: %d\n", errno);
 		exit(-1);
 	}
 	int socket_connection = 1;
@@ -151,7 +152,7 @@ int main(int argc, char **argv){
 
 		// Get the header at least (8B)
 		while (total_recv < 8){
-			recv_size = recv(socketfd, replies[iter]+total_recv, to_recv, 0);
+			recv_size = read(socketfd, replies[iter]+total_recv, to_recv);
 			if (recv_size == 0){
 				exit(-1);
 			}
@@ -162,8 +163,8 @@ int main(int argc, char **argv){
 		// Get string length keep receiving until string length
 		string_length = ntohl(*(unsigned int *)(replies[iter]+4))-8;
 		while (string_length+8 > total_recv){
-			recv_size = recv(socketfd, replies[iter]+total_recv, 
-					string_length+8-total_recv, 0);
+			recv_size = read(socketfd, replies[iter]+total_recv, 
+					string_length+8-total_recv);
 			total_recv += recv_size;
 		}
 		len_rec += string_length;
@@ -202,7 +203,7 @@ int main(int argc, char **argv){
 		memcpy(result+(int)add_string, reply+8, ntohl(*(unsigned int *)(reply+4))-8u);
 		add_string += ntohl(*(unsigned int*)(reply+4)-8u);
 	}
-	result[strlen(string)] = '\0';
+	//result[strlen(string)] = '\0';
 
 	/* Print the result */
 	printf("%s", result);
